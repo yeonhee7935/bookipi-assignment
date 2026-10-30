@@ -243,6 +243,12 @@ Data is UTC end to end: epoch ms in Redis, `TIMESTAMPTZ` in Postgres, ISO-8601 `
 
 One page: status badge, countdown, remaining stock, a user ID field and the buy button. The button follows the sale (`Opens soon` → `Buy now` → `Sold out` / `Drop ended`), shows `Try again in Ns` during a back-off, and becomes `Purchased ✓` once that ID owns an item.
 
+| Upcoming | Live | Purchased |
+|---|---|---|
+| ![Upcoming](docs/screenshots/1-upcoming.png) | ![Live](docs/screenshots/2-live.png) | ![Purchased](docs/screenshots/3-purchased.png) |
+| **Already purchased** | **Sold out** | **Ended** |
+| ![Already purchased](docs/screenshots/4-already-purchased.png) | ![Sold out](docs/screenshots/5-sold-out.png) | ![Ended](docs/screenshots/6-ended.png) |
+
 ---
 
 ## Running the project
