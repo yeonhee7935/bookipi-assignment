@@ -15,15 +15,15 @@ open http://localhost:8080
 ## Contents
 
 1. [Architecture](#architecture)
-2. [Technology choices](#technology-choices)
-3. [Data model](#data-model)
-4. [Design decisions and trade-offs](#design-decisions-and-trade-offs)
-5. [API](#api)
-6. [Frontend](#frontend)
-7. [Running the project](#running-the-project)
-8. [Testing](#testing)
-9. [Stress testing](#stress-testing)
-10. [Project structure](#project-structure)
+2. [Project structure](#project-structure)
+3. [Technology choices](#technology-choices)
+4. [Data model](#data-model)
+5. [Design decisions and trade-offs](#design-decisions-and-trade-offs)
+6. [API](#api)
+7. [Frontend](#frontend)
+8. [Running the project](#running-the-project)
+9. [Testing](#testing)
+10. [Stress testing](#stress-testing)
 
 ---
 
@@ -109,6 +109,34 @@ sequenceDiagram
 | **PostgreSQL** | Source of record for sales and orders. Not needed to sell: if it is down, the sale keeps running |
 | **migrate** | One-off job that applies schema migrations; the worker starts after it succeeds |
 | **create-sale** | Admin command: saves a sale to Postgres, then loads it into Redis |
+
+---
+
+## Project structure
+
+```
+.
+├── docker-compose.yml          redis, postgres, migrate, api ×N, worker, web (nginx), k6
+├── docs/screenshots/          frontend screenshots used below
+├── scripts/demo.sh             start the stack and a sale opening in N seconds
+├── server/
+│   ├── migrations/             SQL migrations
+│   └── src/
+│       ├── server.ts           API entry point
+│       ├── worker.ts           order worker entry point
+│       ├── app.ts              Fastify app (also used by tests)
+│       ├── sale/               sale model, routes → service → repository, purchase.lua
+│       ├── persistence/        worker, orders and sales tables
+│       └── cli/                migrate, create-sale, verify
+├── web/
+│   ├── src/                    React app; purchase.ts and time.ts hold the logic
+│   └── nginx.conf              load balancing, status cache, static files
+└── stress/
+    ├── flash-sale.js           correctness scenarios
+    ├── capacity.js             step load to find capacity
+    ├── run.sh · capacity.sh · compare.sh
+    └── results/                one folder per run (git-ignored)
+```
 
 ---
 
@@ -433,30 +461,3 @@ Medians of 9 runs, except the peak.
 - **This is the worst case:** every request buys and writes to the AOF. In a real sale stock runs out in seconds and refusals write nothing: sold out, 3 replicas answered 40,000 req/s with p99 under 40 ms and Redis at about 60% CPU.
 - **Persistence catches up:** up to 1.9 million orders were waiting when the load stopped, all stored within about 70 s. Purchases never wait on Postgres.
 - **Peak throughput is reproducible** (within 6% across the three sessions). The highest passing step is not: around 32,000–36,000 req/s, p99 sits right at the 50 ms line. Keep the machine idle while measuring.
-
----
-
-## Project structure
-
-```
-.
-├── docker-compose.yml          redis, postgres, migrate, api ×N, worker, web (nginx), k6
-├── scripts/demo.sh             start the stack and a sale opening in N seconds
-├── server/
-│   ├── migrations/             SQL migrations
-│   └── src/
-│       ├── server.ts           API entry point
-│       ├── worker.ts           order worker entry point
-│       ├── app.ts              Fastify app (also used by tests)
-│       ├── sale/               sale model, routes → service → repository, purchase.lua
-│       ├── persistence/        worker, orders and sales tables
-│       └── cli/                migrate, create-sale, verify
-├── web/
-│   ├── src/                    React app; purchase.ts and time.ts hold the logic
-│   └── nginx.conf              load balancing, status cache, static files
-└── stress/
-    ├── flash-sale.js           correctness scenarios
-    ├── capacity.js             step load to find capacity
-    ├── run.sh · capacity.sh · compare.sh
-    └── results/                one folder per run (git-ignored)
-```
