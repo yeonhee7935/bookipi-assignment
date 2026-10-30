@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.env
+stress/results/*
+!stress/results/.gitkeep
+.DS_Store
+.vscode/

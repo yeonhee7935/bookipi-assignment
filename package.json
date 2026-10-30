@@ -1,0 +1,13 @@
+{
+  "name": "flash-sale",
+  "private": true,
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev:server": "pnpm --filter server dev",
+    "dev:worker": "pnpm --filter server dev:worker",
+    "dev:web": "pnpm --filter web dev",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "test:coverage": "pnpm -r test:coverage"
+  }
+}
