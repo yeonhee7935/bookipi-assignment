@@ -1,0 +1,85 @@
+# The sale itself (window, stock) is not configured here: it is created with
+# `create-sale`, stored in Postgres and loaded into Redis. See scripts/demo.sh.
+x-app-env: &app-env
+  SALE_ID: ${SALE_ID:-launch}
+  REDIS_URL: redis://redis:6379
+  DATABASE_URL: postgres://flashsale:flashsale@postgres:5432/flashsale
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    # AOF with fsync on every write batch: a reservation acknowledged to a user survives a Redis crash.
+    command: redis-server --appendonly yes --appendfsync always
+    ports: ["6379:6379"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      retries: 15
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: flashsale
+      POSTGRES_PASSWORD: flashsale
+      POSTGRES_DB: flashsale
+    ports: ["5432:5432"]
+    volumes: [pg-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "flashsale"]
+      interval: 2s
+      retries: 15
+
+  # One-off job: applies pending migrations, then exits.
+  migrate:
+    build: { context: ., dockerfile: server/Dockerfile }
+    command: ["node", "dist/cli/migrate.js"]
+    environment: *app-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: { context: ., dockerfile: server/Dockerfile }
+    environment:
+      <<: *app-env
+      LOG_LEVEL: warn
+    deploy:
+      replicas: ${API_REPLICAS:-3}
+      # One CPU per replica, like a typical small container; makes replica counts comparable.
+      resources:
+        limits:
+          cpus: "${API_CPUS:-1}"
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 2s
+      retries: 15
+    restart: unless-stopped
+
+  worker:
+    build: { context: ., dockerfile: server/Dockerfile }
+    command: ["node", "dist/worker.js"]
+    environment: *app-env
+    depends_on:
+      redis: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  web:
+    build: { context: ., dockerfile: web/Dockerfile }
+    ports: ["8080:80"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  k6:
+    image: grafana/k6:2.3.0
+    profiles: [stress]
+    volumes: [./stress:/stress]
+    environment:
+      BASE_URL: http://web
+    entrypoint: ["k6", "run"] # script path given by stress/lib.sh
+
+volumes:
+  redis-data:
+  pg-data:
