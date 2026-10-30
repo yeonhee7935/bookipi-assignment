@@ -117,7 +117,7 @@ sequenceDiagram
 ```
 .
 ├── docker-compose.yml          redis, postgres, migrate, api ×N, worker, web (nginx), k6
-├── docs/screenshots/          frontend screenshots used below
+├── docs/screenshots/            frontend screenshots
 ├── scripts/demo.sh             start the stack and a sale opening in N seconds
 ├── server/
 │   ├── migrations/             SQL migrations
